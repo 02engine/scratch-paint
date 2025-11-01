@@ -1,14 +1,20 @@
+import paper from '@turbowarp/paper';
 import PropTypes from 'prop-types';
 import React from 'react';
 import {connect} from 'react-redux';
 import bindAll from 'lodash.bindall';
 import Modes from '../lib/modes';
+import {MIXED} from '../helper/style-path';
+import ColorStyleProptype from '../lib/color-style-proptype';
+import GradientTypes from '../lib/gradient-types';
 
+import {changeFillColor, clearFillGradient, DEFAULT_COLOR} from '../reducers/fill-style';
+import {changeStrokeColor, clearStrokeGradient} from '../reducers/stroke-style';
 import {changeMode} from '../reducers/modes';
-import {clearHoveredItem, setHoveredItem} from '../reducers/hover';
 import {clearSelectedItems, setSelectedItems} from '../reducers/selected-items';
+import {setCursor} from '../reducers/cursor';
 
-import {getSelectedLeafItems} from '../helper/selection';
+import {clearSelection, getSelectedLeafItems} from '../helper/selection';
 import RoundedRectTool from '../helper/tools/rounded-rect-tool';
 import RoundedRectModeComponent from '../components/rounded-rect-mode/rounded-rect-mode.jsx';
 
@@ -17,12 +23,19 @@ class RoundedRectMode extends React.Component {
         super(props);
         bindAll(this, [
             'activateTool',
-            'deactivateTool'
+            'deactivateTool',
+            'validateColorState'
         ]);
     }
     componentDidUpdate (prevProps) {
         if (this.tool && prevProps.cornerRadius !== this.props.cornerRadius) {
             this.tool.cornerRadius = this.props.cornerRadius;
+        }
+        if (this.tool && prevProps.colorState !== this.props.colorState) {
+            this.tool.setColorState(this.props.colorState);
+        }
+        if (this.tool && prevProps.selectedItems !== this.props.selectedItems) {
+            this.tool.onSelectionChanged(this.props.selectedItems);
         }
     }
     componentDidMount () {
@@ -50,15 +63,63 @@ class RoundedRectMode extends React.Component {
         }
     }
     activateTool () {
+        clearSelection(this.props.clearSelectedItems);
+        this.validateColorState();
+
         this.tool = new RoundedRectTool(
-            this.props.setHoveredItem,
-            this.props.clearHoveredItem,
             this.props.setSelectedItems,
             this.props.clearSelectedItems,
+            this.props.setCursor,
             this.props.onUpdateImage,
             this.props.cornerRadius
         );
+        this.tool.setColorState(this.props.colorState);
         this.tool.activate();
+    }
+    validateColorState () {
+        // Make sure that at least one of fill/stroke is set, and that MIXED is not one of the colors.
+        // If fill and stroke color are both missing, set fill to default and stroke to transparent.
+        // If exactly one of fill or stroke color is set, set the other one to transparent.
+        const {strokeWidth} = this.props.colorState;
+        const fillColor1 = this.props.colorState.fillColor.primary;
+        let fillColor2 = this.props.colorState.fillColor.secondary;
+        let fillGradient = this.props.colorState.fillColor.gradientType;
+        const strokeColor1 = this.props.colorState.strokeColor.primary;
+        let strokeColor2 = this.props.colorState.strokeColor.secondary;
+        let strokeGradient = this.props.colorState.strokeColor.gradientType;
+
+        if (fillColor2 === MIXED) {
+            this.props.clearFillGradient();
+            fillColor2 = null;
+            fillGradient = GradientTypes.SOLID;
+        }
+        if (strokeColor2 === MIXED) {
+            this.props.clearStrokeGradient();
+            strokeColor2 = null;
+            strokeGradient = GradientTypes.SOLID;
+        }
+
+        const fillColorMissing = fillColor1 === MIXED ||
+            (fillGradient === GradientTypes.SOLID && fillColor1 === null) ||
+            (fillGradient !== GradientTypes.SOLID && fillColor1 === null && fillColor2 === null);
+        const strokeColorMissing = strokeColor1 === MIXED ||
+            strokeWidth === null ||
+            strokeWidth === 0 ||
+            (strokeGradient === GradientTypes.SOLID && strokeColor1 === null) ||
+            (strokeGradient !== GradientTypes.SOLID && strokeColor1 === null && strokeColor2 === null);
+
+        if (fillColorMissing && strokeColorMissing) {
+            this.props.onChangeFillColor(DEFAULT_COLOR);
+            this.props.clearFillGradient();
+            this.props.onChangeStrokeColor(null);
+            this.props.clearStrokeGradient();
+        } else if (fillColorMissing && !strokeColorMissing) {
+            this.props.onChangeFillColor(null);
+            this.props.clearFillGradient();
+        } else if (!fillColorMissing && strokeColorMissing) {
+            this.props.onChangeStrokeColor(null);
+            this.props.clearStrokeGradient();
+        }
     }
     deactivateTool () {
         this.tool.deactivateTool();
@@ -76,23 +137,43 @@ class RoundedRectMode extends React.Component {
 }
 
 RoundedRectMode.propTypes = {
+    clearFillGradient: PropTypes.func.isRequired,
+    clearStrokeGradient: PropTypes.func.isRequired,
     clearHoveredItem: PropTypes.func.isRequired,
     clearSelectedItems: PropTypes.func.isRequired,
+    colorState: PropTypes.shape({
+        fillColor: ColorStyleProptype,
+        strokeColor: ColorStyleProptype,
+        strokeWidth: PropTypes.number
+    }).isRequired,
     cornerRadius: PropTypes.number,
     handleMouseDown: PropTypes.func.isRequired,
     hoveredItemId: PropTypes.number,
     isRoundedRectModeActive: PropTypes.bool.isRequired,
+    onChangeFillColor: PropTypes.func.isRequired,
+    onChangeStrokeColor: PropTypes.func.isRequired,
     onUpdateImage: PropTypes.func.isRequired,
+    selectedItems: PropTypes.arrayOf(PropTypes.instanceOf(paper.Item)),
+    setCursor: PropTypes.func.isRequired,
     setHoveredItem: PropTypes.func.isRequired,
     setSelectedItems: PropTypes.func.isRequired
 };
 
 const mapStateToProps = state => ({
+    colorState: state.scratchPaint.color,
     isRoundedRectModeActive: state.scratchPaint.mode === Modes.ROUNDED_RECT,
     hoveredItemId: state.scratchPaint.hoveredItemId,
-    cornerRadius: state.scratchPaint.cornerRadius
+    cornerRadius: state.scratchPaint.cornerRadius,
+    selectedItems: state.scratchPaint.selectedItems
 });
+
 const mapDispatchToProps = dispatch => ({
+    clearFillGradient: () => {
+        dispatch(clearFillGradient());
+    },
+    clearStrokeGradient: () => {
+        dispatch(clearStrokeGradient());
+    },
     setHoveredItem: hoveredItemId => {
         dispatch(setHoveredItem(hoveredItemId));
     },
@@ -105,10 +186,17 @@ const mapDispatchToProps = dispatch => ({
     setSelectedItems: () => {
         dispatch(setSelectedItems(getSelectedLeafItems(), false /* bitmapMode */));
     },
+    setCursor: cursorString => {
+        dispatch(setCursor(cursorString));
+    },
     handleMouseDown: () => {
         dispatch(changeMode(Modes.ROUNDED_RECT));
     },
-    deactivateTool () {
+    onChangeFillColor: fillColor => {
+        dispatch(changeFillColor(fillColor));
+    },
+    onChangeStrokeColor: strokeColor => {
+        dispatch(changeStrokeColor(strokeColor));
     }
 });
 
