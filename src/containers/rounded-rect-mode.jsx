@@ -20,6 +20,11 @@ class RoundedRectMode extends React.Component {
             'deactivateTool'
         ]);
     }
+    componentDidUpdate (prevProps) {
+        if (this.tool && prevProps.cornerRadius !== this.props.cornerRadius) {
+            this.tool.cornerRadius = this.props.cornerRadius;
+        }
+    }
     componentDidMount () {
         if (this.props.isRoundedRectModeActive) {
             this.activateTool(this.props);
@@ -50,7 +55,8 @@ class RoundedRectMode extends React.Component {
             this.props.clearHoveredItem,
             this.props.setSelectedItems,
             this.props.clearSelectedItems,
-            this.props.onUpdateImage
+            this.props.onUpdateImage,
+            this.props.cornerRadius
         );
         this.tool.activate();
     }
@@ -72,6 +78,7 @@ class RoundedRectMode extends React.Component {
 RoundedRectMode.propTypes = {
     clearHoveredItem: PropTypes.func.isRequired,
     clearSelectedItems: PropTypes.func.isRequired,
+    cornerRadius: PropTypes.number,
     handleMouseDown: PropTypes.func.isRequired,
     hoveredItemId: PropTypes.number,
     isRoundedRectModeActive: PropTypes.bool.isRequired,
@@ -82,7 +89,8 @@ RoundedRectMode.propTypes = {
 
 const mapStateToProps = state => ({
     isRoundedRectModeActive: state.scratchPaint.mode === Modes.ROUNDED_RECT,
-    hoveredItemId: state.scratchPaint.hoveredItemId
+    hoveredItemId: state.scratchPaint.hoveredItemId,
+    cornerRadius: state.scratchPaint.cornerRadius
 });
 const mapDispatchToProps = dispatch => ({
     setHoveredItem: hoveredItemId => {

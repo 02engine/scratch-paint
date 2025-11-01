@@ -8,6 +8,7 @@ import {changeBrushSize as changeEraserSize} from '../../reducers/eraser-mode';
 import {changeBitBrushSize} from '../../reducers/bit-brush-size';
 import {changeBitEraserSize} from '../../reducers/bit-eraser-size';
 import {setShapesFilled} from '../../reducers/fill-bitmap-shapes';
+import {changeCornerRadius} from '../../reducers/corner-radius';
 
 import FontDropdown from '../../containers/font-dropdown.jsx';
 import LiveInputHOC from '../forms/live-input-hoc.jsx';
@@ -299,6 +300,11 @@ const ModeToolsComponent = props => {
             </div>
         );
     }
+    case Modes.ROUNDED_RECT:
+        // 不显示任何工具，使用固定圆角值
+        return (
+            <div className={classNames(props.className, styles.modeTools)} />
+        );
     default:
         // Leave empty for now, if mode not supported
         return (
@@ -313,6 +319,7 @@ ModeToolsComponent.propTypes = {
     brushValue: PropTypes.number,
     className: PropTypes.string,
     clipboardItems: PropTypes.arrayOf(PropTypes.array),
+    cornerRadius: PropTypes.number,
     eraserValue: PropTypes.number,
     fillBitmapShapes: PropTypes.bool,
     format: PropTypes.oneOf(Object.keys(Formats)),
@@ -324,6 +331,7 @@ ModeToolsComponent.propTypes = {
     onBitEraserSliderChange: PropTypes.func.isRequired,
     onBrushSliderChange: PropTypes.func.isRequired,
     onCopyToClipboard: PropTypes.func.isRequired,
+    onCornerRadiusChange: PropTypes.func.isRequired,
     onCurvePoints: PropTypes.func.isRequired,
     onDelete: PropTypes.func.isRequired,
     onEraserSliderChange: PropTypes.func,
@@ -345,7 +353,8 @@ const mapStateToProps = state => ({
     bitEraserSize: state.scratchPaint.bitEraserSize,
     brushValue: state.scratchPaint.brushMode.brushSize,
     clipboardItems: state.scratchPaint.clipboard.items,
-    eraserValue: state.scratchPaint.eraserMode.brushSize
+    eraserValue: state.scratchPaint.eraserMode.brushSize,
+    cornerRadius: state.scratchPaint.cornerRadius
 });
 const mapDispatchToProps = dispatch => ({
     onBrushSliderChange: brushSize => {
@@ -356,6 +365,9 @@ const mapDispatchToProps = dispatch => ({
     },
     onBitEraserSliderChange: eraserSize => {
         dispatch(changeBitEraserSize(eraserSize));
+    },
+    onCornerRadiusChange: radius => {
+        dispatch(changeCornerRadius(radius));
     },
     onEraserSliderChange: eraserSize => {
         dispatch(changeEraserSize(eraserSize));
