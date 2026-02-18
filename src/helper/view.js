@@ -20,8 +20,10 @@ const MIN_RATIO = .125; // Zoom in to at least 1/8 of the screen. This way you d
 //                         zoomed in for tiny costumes.
 const OUTERMOST_ZOOM_LEVEL = 0.333;
 let ART_BOARD_BOUNDS;
-let MAX_WORKSPACE_BOUNDS;
 /* eslint-enable import/no-mutable-exports */
+
+// 工作区可视范围的大小（比艺术板大一些）
+const WORKSPACE_VIEW_SIZE = 2000; // 工作区可视范围的大小
 
 const resizeView = (width, height) => {
     SVG_ART_BOARD_WIDTH = width;
@@ -30,17 +32,47 @@ const resizeView = (width, height) => {
     ART_BOARD_HEIGHT = SVG_ART_BOARD_HEIGHT * 2;
     CENTER = new paper.Point(ART_BOARD_WIDTH / 2, ART_BOARD_HEIGHT / 2);
     ART_BOARD_BOUNDS = new paper.Rectangle(0, 0, ART_BOARD_WIDTH, ART_BOARD_HEIGHT);
-    MAX_WORKSPACE_BOUNDS = new paper.Rectangle(
-        -ART_BOARD_WIDTH / 4,
-        -ART_BOARD_HEIGHT / 4,
-        ART_BOARD_WIDTH * 1.5,
-        ART_BOARD_HEIGHT * 1.5);
 };
 resizeView(480, 360);
 
-let _workspaceBounds = ART_BOARD_BOUNDS;
+// 工作区中心点，用于计算工作区边界
+let _workspaceCenter = CENTER.clone();
 
-const getWorkspaceBounds = () => _workspaceBounds;
+// 获取当前工作区边界（以 _workspaceCenter 为中心）
+const getWorkspaceBounds = () => {
+    const halfSize = WORKSPACE_VIEW_SIZE / 2;
+    return new paper.Rectangle(
+        _workspaceCenter.x - halfSize,
+        _workspaceCenter.y - halfSize,
+        WORKSPACE_VIEW_SIZE,
+        WORKSPACE_VIEW_SIZE
+    );
+};
+
+/**
+ * 更新工作区中心点，使其跟随视图中心移动
+ * 这是实现无限滑动的关键：当视图中心偏离工作区中心一定距离时，
+ * 更新工作区中心为视图中心
+ * 
+ * @param {number} viewCenterX - 当前视图中心的 X 坐标（在项目坐标系中）
+ * @param {number} viewCenterY - 当前视图中心的 Y 坐标（在项目坐标系中）
+ * @returns {boolean} 是否更新了工作区中心
+ */
+const updateWorkspaceCenter = (viewCenterX, viewCenterY) => {
+    // 计算视图中心与当前工作区中心的距离
+    const distance = Math.sqrt(
+        Math.pow(viewCenterX - _workspaceCenter.x, 2) + 
+        Math.pow(viewCenterY - _workspaceCenter.y, 2)
+    );
+    
+    // 如果距离超过阈值，更新工作区中心
+    const threshold = WORKSPACE_VIEW_SIZE / 4; // 当距离超过可视范围的1/4时更新
+    if (distance > threshold) {
+        _workspaceCenter = new paper.Point(viewCenterX, viewCenterY);
+        return true;
+    }
+    return false;
+};
 
 /**
 * The workspace bounds define the areas that the scroll bars can access.
@@ -54,55 +86,37 @@ const getWorkspaceBounds = () => _workspaceBounds;
 * (such as in a zoom button click)
 */
 const setWorkspaceBounds = clipEmpty => {
-    const items = getAllRootItems();
-    // Include the artboard and what's visible in the viewport
-    let bounds = ART_BOARD_BOUNDS;
-    if (!clipEmpty) {
-        bounds = bounds.unite(paper.view.bounds);
-    }
-    // Include everything the user has drawn and a buffer around it
-    for (const item of items) {
-        bounds = bounds.unite(item.bounds.expand(BUFFER));
-    }
-    // Limit to max workspace bounds
-    bounds = bounds.intersect(MAX_WORKSPACE_BOUNDS.expand(BUFFER));
-    let top = bounds.top;
-    let left = bounds.left;
-    let bottom = bounds.bottom;
-    let right = bounds.right;
-
-    // Center in view if viewport is larger than workspace
-    let hDiff = 0;
-    let vDiff = 0;
-    if (bounds.width < paper.view.bounds.width) {
-        hDiff = (paper.view.bounds.width - bounds.width) / 2;
-        left -= hDiff;
-        right += hDiff;
-    }
-    if (bounds.height < paper.view.bounds.height) {
-        vDiff = (paper.view.bounds.height - bounds.height) / 2;
-        top -= vDiff;
-        bottom += vDiff;
-    }
-
-    _workspaceBounds = new paper.Rectangle(left, top, right - left, bottom - top);
+    // 不再主动更新工作区边界，它由 updateWorkspaceCenter 管理
+    // 但为了兼容性，保持空函数
 };
 
 const clampViewBounds = () => {
-    const {left, right, top, bottom} = paper.project.view.bounds;
-    if (left < _workspaceBounds.left) {
-        paper.project.view.scrollBy(new paper.Point(_workspaceBounds.left - left, 0));
+    const viewBounds = paper.project.view.bounds;
+    const workspaceBounds = getWorkspaceBounds();
+    
+    // 只有当视图完全超出工作区边界时才限制
+    // 允许视图的一部分在工作区外，但中心必须在可视范围内
+    const viewCenterX = viewBounds.x + viewBounds.width / 2;
+    const viewCenterY = viewBounds.y + viewBounds.height / 2;
+    
+    let dx = 0;
+    let dy = 0;
+    
+    if (viewCenterX < workspaceBounds.left) {
+        dx = workspaceBounds.left - viewCenterX;
+    } else if (viewCenterX > workspaceBounds.right) {
+        dx = workspaceBounds.right - viewCenterX;
     }
-    if (top < _workspaceBounds.top) {
-        paper.project.view.scrollBy(new paper.Point(0, _workspaceBounds.top - top));
+    
+    if (viewCenterY < workspaceBounds.top) {
+        dy = workspaceBounds.top - viewCenterY;
+    } else if (viewCenterY > workspaceBounds.bottom) {
+        dy = workspaceBounds.bottom - viewCenterY;
     }
-    if (bottom > _workspaceBounds.bottom) {
-        paper.project.view.scrollBy(new paper.Point(0, _workspaceBounds.bottom - bottom));
+    
+    if (dx !== 0 || dy !== 0) {
+        paper.project.view.scrollBy(new paper.Point(dx, dy));
     }
-    if (right > _workspaceBounds.right) {
-        paper.project.view.scrollBy(new paper.Point(_workspaceBounds.right - right, 0));
-    }
-    setWorkspaceBounds();
 };
 
 const resizeCrosshair = () => {
@@ -156,6 +170,8 @@ const zoomOnSelection = deltaZoom => {
 
 const resetZoom = () => {
     paper.project.view.zoom = .5;
+    // 重置工作区中心到艺术板中心
+    _workspaceCenter = CENTER.clone();
     setWorkspaceBounds(true /* clipEmpty */);
     resizeCrosshair();
     clampViewBounds();
@@ -175,7 +191,8 @@ const getActionBounds = isBitmap => {
     if (isBitmap) {
         return ART_BOARD_BOUNDS;
     }
-    return paper.view.bounds.unite(ART_BOARD_BOUNDS).intersect(MAX_WORKSPACE_BOUNDS);
+    // 使用当前工作区边界作为操作边界
+    return paper.view.bounds.unite(ART_BOARD_BOUNDS).unite(getWorkspaceBounds());
 };
 
 const zoomToFit = isBitmap => {
@@ -213,6 +230,14 @@ const zoomToFit = isBitmap => {
     }
 };
 
+// 为了兼容性，定义 MAX_WORKSPACE_BOUNDS（不再用于限制，仅供其他模块引用）
+const MAX_WORKSPACE_BOUNDS = new paper.Rectangle(
+    -10000,
+    -10000,
+    20000,
+    20000
+);
+
 export {
     ART_BOARD_BOUNDS,
     ART_BOARD_HEIGHT,
@@ -222,6 +247,7 @@ export {
     SVG_ART_BOARD_WIDTH,
     SVG_ART_BOARD_HEIGHT,
     MAX_WORKSPACE_BOUNDS,
+    WORKSPACE_VIEW_SIZE,
     resizeView,
     clampViewBounds,
     getActionBounds,
@@ -229,6 +255,7 @@ export {
     resetZoom,
     setWorkspaceBounds,
     getWorkspaceBounds,
+    updateWorkspaceCenter,
     resizeCrosshair,
     zoomOnSelection,
     zoomOnFixedPoint,

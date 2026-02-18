@@ -5,7 +5,7 @@ import React from 'react';
 import {connect} from 'react-redux';
 import ScrollableCanvasComponent from '../components/scrollable-canvas/scrollable-canvas.jsx';
 
-import {clampViewBounds, pan, zoomOnFixedPoint, getWorkspaceBounds} from '../helper/view';
+import {clampViewBounds, pan, zoomOnFixedPoint, getWorkspaceBounds, updateWorkspaceCenter} from '../helper/view';
 import {updateViewBounds} from '../reducers/view-bounds';
 import {redrawSelectionBox} from '../reducers/selected-items';
 
@@ -28,7 +28,8 @@ class ScrollableCanvas extends React.Component {
             'handleVerticalScrollbarMouseDown',
             'handleVerticalScrollbarMouseMove',
             'handleVerticalScrollbarMouseUp',
-            'handleWheel'
+            'handleWheel',
+            'updateWorkspaceToFollowView'
         ]);
     }
     componentDidMount () {
@@ -45,6 +46,23 @@ class ScrollableCanvas extends React.Component {
             }
             nextProps.canvas.addEventListener('wheel', this.handleWheel);
             nextProps.canvas.addEventListener('mousedown', this.handleMouseDown);
+        }
+    }
+    /**
+     * 更新工作区中心，使其跟随视图中心移动
+     */
+    updateWorkspaceToFollowView () {
+        if (!paper.view) return;
+        
+        // 获取当前视图中心（在项目坐标系中）
+        const viewCenter = paper.view.center;
+        
+        // 更新工作区中心
+        const updated = updateWorkspaceCenter(viewCenter.x, viewCenter.y);
+        
+        if (updated) {
+            // 如果工作区中心更新了，通知 Redux
+            this.props.updateViewBounds(paper.view.matrix);
         }
     }
     handleMouseDown (event) {
@@ -67,6 +85,7 @@ class ScrollableCanvas extends React.Component {
         paper.view.matrix.ty = this.initialScreenY - (this.initialMouseY - y);
         paper.view.matrix.tx = this.initialScreenX - (this.initialMouseX - x);
         clampViewBounds();
+        this.updateWorkspaceToFollowView();
         this.props.updateViewBounds(paper.view.matrix);
         if (this.props.canvas) {
             this.props.canvas.style.cursor = 'move';
@@ -93,6 +112,7 @@ class ScrollableCanvas extends React.Component {
         const dx = this.initialMouseX - getEventXY(event).x;
         paper.view.matrix.tx = this.initialScreenX + (dx * paper.view.zoom * 2);
         clampViewBounds();
+        this.updateWorkspaceToFollowView();
         this.props.updateViewBounds(paper.view.matrix);
         event.preventDefault();
     }
@@ -118,6 +138,7 @@ class ScrollableCanvas extends React.Component {
         const dy = this.initialMouseY - getEventXY(event).y;
         paper.view.matrix.ty = this.initialScreenY + (dy * paper.view.zoom * 2);
         clampViewBounds();
+        this.updateWorkspaceToFollowView();
         this.props.updateViewBounds(paper.view.matrix);
         event.preventDefault();
     }
@@ -131,8 +152,6 @@ class ScrollableCanvas extends React.Component {
         event.preventDefault();
     }
     handleWheel (event) {
-        // Multiplier variable, so that non-pixel-deltaModes are supported. Needed for Firefox.
-        // See #529 (or LLK/scratch-blocks#1190).
         const multiplier = event.deltaMode === 0x1 ? 15 : 1;
         const deltaX = event.deltaX * multiplier;
         const deltaY = event.deltaY * multiplier;
@@ -143,21 +162,19 @@ class ScrollableCanvas extends React.Component {
             new paper.Point(offsetX, offsetY)
         );
         if (event.metaKey || event.ctrlKey) {
-            // Zoom keeping mouse location fixed
             zoomOnFixedPoint(-deltaY / 500, fixedPoint);
             this.props.updateViewBounds(paper.view.matrix);
-            this.props.redrawSelectionBox(); // Selection handles need to be resized after zoom
+            this.props.redrawSelectionBox();
         } else if (event.shiftKey && event.deltaX === 0) {
-            // Scroll horizontally (based on vertical scroll delta)
-            // This is needed as for some browser/system combinations which do not set deltaX.
-            // See #156.
             const dx = deltaY / paper.view.zoom;
             pan(dx, 0);
+            this.updateWorkspaceToFollowView();
             this.props.updateViewBounds(paper.view.matrix);
         } else {
             const dx = deltaX / paper.view.zoom;
             const dy = deltaY / paper.view.zoom;
             pan(dx, dy);
+            this.updateWorkspaceToFollowView();
             this.props.updateViewBounds(paper.view.matrix);
             if (paper.tool) {
                 paper.tool.view._handleMouseEvent('mousemove', event, fixedPoint);

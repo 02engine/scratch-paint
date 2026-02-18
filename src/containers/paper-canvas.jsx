@@ -277,12 +277,9 @@ class PaperCanvas extends React.Component {
         mask.guide = true;
         mask.locked = true;
         mask.matrix = new paper.Matrix(); // Identity
-        // Set the artwork to get clipped at the max costume size
-        mask.size.height = MAX_WORKSPACE_BOUNDS.height;
-        mask.size.width = MAX_WORKSPACE_BOUNDS.width;
-        mask.setPosition(CENTER);
-        paper.project.activeLayer.addChild(mask);
-        mask.clipMask = true;
+        // 移除 artwork 的尺寸限制，让用户可以在任意位置绘制
+        // 不设置固定的 mask 大小和 clipMask
+        mask.remove(); // 移除 mask，不限制绘制范围
 
         // Reduce single item nested in groups
         if (item instanceof paper.Group && item.children.length === 1) {
