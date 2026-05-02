@@ -25,7 +25,8 @@ const VECTOR_KEYBINDINGS = {
     t: Modes.TEXT,
     l: Modes.LINE,
     c: Modes.OVAL,
-    r: Modes.RECT
+    r: Modes.RECT,
+    o: Modes.ROUNDED_RECT
 };
 
 const BITMAP_KEYBINDINGS = {

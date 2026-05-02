@@ -8,7 +8,7 @@ import {changeBrushSize as changeEraserSize} from '../../reducers/eraser-mode';
 import {changeBitBrushSize} from '../../reducers/bit-brush-size';
 import {changeBitEraserSize} from '../../reducers/bit-eraser-size';
 import {setShapesFilled} from '../../reducers/fill-bitmap-shapes';
-import {changeCornerRadius} from '../../reducers/corner-radius';
+import {changeCornerRadius} from '../../reducers/rounded-rect-mode';
 
 import FontDropdown from '../../containers/font-dropdown.jsx';
 import LiveInputHOC from '../forms/live-input-hoc.jsx';
@@ -104,6 +104,11 @@ const ModeToolsComponent = props => {
             defaultMessage: 'Outlined',
             description: 'Label for the button that sets the bitmap rectangle/oval mode to draw filled-in shapes',
             id: 'paint.modeTools.outlined'
+        },
+        cornerRadius: {
+            defaultMessage: 'Corner Radius',
+            description: 'Label for the corner radius input',
+            id: 'paint.modeTools.cornerRadius'
         }
     });
 
@@ -301,10 +306,25 @@ const ModeToolsComponent = props => {
         );
     }
     case Modes.ROUNDED_RECT:
-        // 不显示任何工具，使用固定圆角值
+    {
         return (
-            <div className={classNames(props.className, styles.modeTools)} />
+            <div className={classNames(props.className, styles.modeTools)}>
+                <InputGroup>
+                    <Label text={props.intl.formatMessage(messages.cornerRadius)}>
+                        <LiveInput
+                            range
+                            small
+                            max="100"
+                            min="0"
+                            type="number"
+                            value={props.cornerRadius}
+                            onSubmit={props.onCornerRadiusChange}
+                        />
+                    </Label>
+                </InputGroup>
+            </div>
         );
+    }
     default:
         // Leave empty for now, if mode not supported
         return (
@@ -319,7 +339,6 @@ ModeToolsComponent.propTypes = {
     brushValue: PropTypes.number,
     className: PropTypes.string,
     clipboardItems: PropTypes.arrayOf(PropTypes.array),
-    cornerRadius: PropTypes.number,
     eraserValue: PropTypes.number,
     fillBitmapShapes: PropTypes.bool,
     format: PropTypes.oneOf(Object.keys(Formats)),
@@ -327,11 +346,11 @@ ModeToolsComponent.propTypes = {
     hasSelectedUnpointedPoints: PropTypes.bool,
     intl: intlShape.isRequired,
     mode: PropTypes.string.isRequired,
+    cornerRadius: PropTypes.number,
     onBitBrushSliderChange: PropTypes.func.isRequired,
     onBitEraserSliderChange: PropTypes.func.isRequired,
     onBrushSliderChange: PropTypes.func.isRequired,
     onCopyToClipboard: PropTypes.func.isRequired,
-    onCornerRadiusChange: PropTypes.func.isRequired,
     onCurvePoints: PropTypes.func.isRequired,
     onDelete: PropTypes.func.isRequired,
     onEraserSliderChange: PropTypes.func,
@@ -354,7 +373,7 @@ const mapStateToProps = state => ({
     brushValue: state.scratchPaint.brushMode.brushSize,
     clipboardItems: state.scratchPaint.clipboard.items,
     eraserValue: state.scratchPaint.eraserMode.brushSize,
-    cornerRadius: state.scratchPaint.cornerRadius
+    cornerRadius: state.scratchPaint.roundedRectMode.cornerRadius
 });
 const mapDispatchToProps = dispatch => ({
     onBrushSliderChange: brushSize => {
@@ -366,9 +385,6 @@ const mapDispatchToProps = dispatch => ({
     onBitEraserSliderChange: eraserSize => {
         dispatch(changeBitEraserSize(eraserSize));
     },
-    onCornerRadiusChange: radius => {
-        dispatch(changeCornerRadius(radius));
-    },
     onEraserSliderChange: eraserSize => {
         dispatch(changeEraserSize(eraserSize));
     },
@@ -377,6 +393,9 @@ const mapDispatchToProps = dispatch => ({
     },
     onOutlineShapes: () => {
         dispatch(setShapesFilled(false));
+    },
+    onCornerRadiusChange: cornerRadius => {
+        dispatch(changeCornerRadius(cornerRadius));
     }
 });
 

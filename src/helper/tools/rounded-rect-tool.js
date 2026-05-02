@@ -18,23 +18,20 @@ class RoundedRectTool extends paper.Tool {
      * @param {function} clearSelectedItems Callback to clear the set of selected items in the Redux state
      * @param {function} setCursor Callback to set the visible mouse cursor
      * @param {!function} onUpdateImage A callback to call when the image visibly changes
-     * @param {number} cornerRadius The corner radius from Redux state
      */
-    constructor (setSelectedItems, clearSelectedItems, setCursor, onUpdateImage, cornerRadius) {
+    constructor (setSelectedItems, clearSelectedItems, setCursor, onUpdateImage) {
         super();
         this.setSelectedItems = setSelectedItems;
         this.clearSelectedItems = clearSelectedItems;
         this.onUpdateImage = onUpdateImage;
-        this.cornerRadius = cornerRadius;
-        
         this.boundingBoxTool = new BoundingBoxTool(
-            Modes.RECT,
+            Modes.ROUNDED_RECT,
             setSelectedItems,
             clearSelectedItems,
             setCursor,
             onUpdateImage
         );
-        const nudgeTool = new NudgeTool(Modes.RECT, this.boundingBoxTool, onUpdateImage);
+        const nudgeTool = new NudgeTool(Modes.ROUNDED_RECT, this.boundingBoxTool, onUpdateImage);
 
         // We have to set these functions instead of just declaring them because
         // paper.js tools hook up the listeners in the setter functions.
@@ -45,10 +42,11 @@ class RoundedRectTool extends paper.Tool {
         this.onKeyUp = nudgeTool.onKeyUp;
         this.onKeyDown = nudgeTool.onKeyDown;
 
-        this.roundedRect = null;
+        this.rect = null;
         this.colorState = null;
         this.isBoundingBoxMode = null;
         this.active = false;
+        this.cornerRadius = 20; // Default corner radius
     }
     getHitOptions () {
         return {
@@ -73,28 +71,8 @@ class RoundedRectTool extends paper.Tool {
     setColorState (colorState) {
         this.colorState = colorState;
     }
-    /**
-     * Create a rounded rectangle path
-     * @param {paper.Point} from Start point
-     * @param {paper.Point} to End point
-     * @returns {paper.Path} The created rounded rectangle path
-     */
-    _createRoundedRect (from, to) {
-        const topLeft = new paper.Point(
-            Math.min(from.x, to.x),
-            Math.min(from.y, to.y)
-        );
-        const bottomRight = new paper.Point(
-            Math.max(from.x, to.x),
-            Math.max(from.y, to.y)
-        );
-        const rect = new paper.Rectangle(topLeft, bottomRight);
-        
-        // Calculate corner radius - adaptive based on rectangle size, but not exceeding 12
-        const cornerRadius = Math.min(12, Math.min(Math.abs(rect.width), Math.abs(rect.height)) / 4);
-        const path = new paper.Path.RoundRectangle(rect, cornerRadius);
-        
-        return path;
+    setCornerRadius (radius) {
+        this.cornerRadius = radius;
     }
     handleMouseDown (event) {
         if (event.event.button > 0) return; // only first mouse button
@@ -116,8 +94,8 @@ class RoundedRectTool extends paper.Tool {
             return;
         }
 
-        if (this.roundedRect) {
-            this.roundedRect.remove();
+        if (this.rect) {
+            this.rect.remove();
         }
 
         const rect = new paper.Rectangle(event.downPoint, event.point);
@@ -126,17 +104,24 @@ class RoundedRectTool extends paper.Tool {
             rect.size = squareDimensions.size.abs();
         }
 
-        this.roundedRect = this._createRoundedRect(event.downPoint, event.point);
+        // Calculate corner radius, ensuring it doesn't exceed half of width/height
+        const currentRadius = Math.min(
+            this.cornerRadius,
+            Math.abs(rect.width / 2),
+            Math.abs(rect.height / 2)
+        );
+
+        this.rect = new paper.Path.Rectangle(rect, currentRadius);
         if (event.modifiers.alt) {
-            this.roundedRect.position = event.downPoint;
+            this.rect.position = event.downPoint;
         } else if (event.modifiers.shift) {
-            this.roundedRect.position = squareDimensions.position;
+            this.rect.position = squareDimensions.position;
         } else {
             const dimensions = event.point.subtract(event.downPoint);
-            this.roundedRect.position = event.downPoint.add(dimensions.multiply(0.5));
+            this.rect.position = event.downPoint.add(dimensions.multiply(0.5));
         }
 
-        styleShape(this.roundedRect, this.colorState);
+        styleShape(this.rect, this.colorState);
     }
     handleMouseUp (event) {
         if (event.event.button > 0 || !this.active) return; // only first mouse button
@@ -147,16 +132,16 @@ class RoundedRectTool extends paper.Tool {
             return;
         }
 
-        if (this.roundedRect) {
-            if (this.roundedRect.area < RoundedRectTool.TOLERANCE / paper.view.zoom) {
-                // Tiny rounded rectangle created unintentionally?
-                this.roundedRect.remove();
-                this.roundedRect = null;
+        if (this.rect) {
+            if (this.rect.area < RoundedRectTool.TOLERANCE / paper.view.zoom) {
+                // Tiny rectangle created unintentionally?
+                this.rect.remove();
+                this.rect = null;
             } else {
-                this.roundedRect.selected = true;
+                this.rect.selected = true;
                 this.setSelectedItems();
                 this.onUpdateImage();
-                this.roundedRect = null;
+                this.rect = null;
             }
         }
         this.active = false;

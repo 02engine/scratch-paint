@@ -4,6 +4,7 @@ import bitBrushSizeReducer from './bit-brush-size';
 import bitEraserSizeReducer from './bit-eraser-size';
 import brushModeReducer from './brush-mode';
 import eraserModeReducer from './eraser-mode';
+import roundedRectModeReducer from './rounded-rect-mode';
 import colorReducer from './color';
 import clipboardReducer from './clipboard';
 import cursorReducer from './cursor';
@@ -27,6 +28,7 @@ export default combineReducers({
     bitBrushSize: bitBrushSizeReducer,
     bitEraserSize: bitEraserSizeReducer,
     brushMode: brushModeReducer,
+    roundedRectMode: roundedRectModeReducer,
     color: colorReducer,
     clipboard: clipboardReducer,
     cursor: cursorReducer,

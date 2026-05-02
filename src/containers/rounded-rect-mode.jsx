@@ -27,25 +27,22 @@ class RoundedRectMode extends React.Component {
             'validateColorState'
         ]);
     }
-    componentDidUpdate (prevProps) {
-        if (this.tool && prevProps.cornerRadius !== this.props.cornerRadius) {
-            this.tool.cornerRadius = this.props.cornerRadius;
-        }
-        if (this.tool && prevProps.colorState !== this.props.colorState) {
-            this.tool.setColorState(this.props.colorState);
-        }
-        if (this.tool && prevProps.selectedItems !== this.props.selectedItems) {
-            this.tool.onSelectionChanged(this.props.selectedItems);
-        }
-    }
     componentDidMount () {
         if (this.props.isRoundedRectModeActive) {
             this.activateTool(this.props);
         }
     }
     componentWillReceiveProps (nextProps) {
-        if (this.tool && nextProps.hoveredItemId !== this.props.hoveredItemId) {
-            this.tool.setPrevHoveredItemId(nextProps.hoveredItemId);
+        if (this.tool && nextProps.colorState !== this.props.colorState) {
+            this.tool.setColorState(nextProps.colorState);
+        }
+        if (this.tool && nextProps.selectedItems !== this.props.selectedItems) {
+            this.tool.onSelectionChanged(nextProps.selectedItems);
+        }
+        
+        // Update corner radius when it changes
+        if (this.tool && nextProps.cornerRadius !== this.props.cornerRadius) {
+            this.tool.setCornerRadius(nextProps.cornerRadius);
         }
 
         if (nextProps.isRoundedRectModeActive && !this.props.isRoundedRectModeActive) {
@@ -70,13 +67,13 @@ class RoundedRectMode extends React.Component {
             this.props.setSelectedItems,
             this.props.clearSelectedItems,
             this.props.setCursor,
-            this.props.onUpdateImage,
-            this.props.cornerRadius
+            this.props.onUpdateImage
         );
         this.tool.setColorState(this.props.colorState);
+        this.tool.setCornerRadius(this.props.cornerRadius);
         this.tool.activate();
     }
-    validateColorState () {
+    validateColorState () { // TODO move to shared class
         // Make sure that at least one of fill/stroke is set, and that MIXED is not one of the colors.
         // If fill and stroke color are both missing, set fill to default and stroke to transparent.
         // If exactly one of fill or stroke color is set, set the other one to transparent.
@@ -139,49 +136,38 @@ class RoundedRectMode extends React.Component {
 RoundedRectMode.propTypes = {
     clearFillGradient: PropTypes.func.isRequired,
     clearStrokeGradient: PropTypes.func.isRequired,
-    clearHoveredItem: PropTypes.func.isRequired,
     clearSelectedItems: PropTypes.func.isRequired,
     colorState: PropTypes.shape({
         fillColor: ColorStyleProptype,
         strokeColor: ColorStyleProptype,
         strokeWidth: PropTypes.number
     }).isRequired,
-    cornerRadius: PropTypes.number,
+    cornerRadius: PropTypes.number.isRequired,
     handleMouseDown: PropTypes.func.isRequired,
-    hoveredItemId: PropTypes.number,
     isRoundedRectModeActive: PropTypes.bool.isRequired,
     onChangeFillColor: PropTypes.func.isRequired,
     onChangeStrokeColor: PropTypes.func.isRequired,
     onUpdateImage: PropTypes.func.isRequired,
     selectedItems: PropTypes.arrayOf(PropTypes.instanceOf(paper.Item)),
     setCursor: PropTypes.func.isRequired,
-    setHoveredItem: PropTypes.func.isRequired,
     setSelectedItems: PropTypes.func.isRequired
 };
 
 const mapStateToProps = state => ({
     colorState: state.scratchPaint.color,
     isRoundedRectModeActive: state.scratchPaint.mode === Modes.ROUNDED_RECT,
-    hoveredItemId: state.scratchPaint.hoveredItemId,
-    cornerRadius: state.scratchPaint.cornerRadius,
-    selectedItems: state.scratchPaint.selectedItems
+    selectedItems: state.scratchPaint.selectedItems,
+    cornerRadius: state.scratchPaint.roundedRectMode.cornerRadius
 });
-
 const mapDispatchToProps = dispatch => ({
+    clearSelectedItems: () => {
+        dispatch(clearSelectedItems());
+    },
     clearFillGradient: () => {
         dispatch(clearFillGradient());
     },
     clearStrokeGradient: () => {
         dispatch(clearStrokeGradient());
-    },
-    setHoveredItem: hoveredItemId => {
-        dispatch(setHoveredItem(hoveredItemId));
-    },
-    clearHoveredItem: () => {
-        dispatch(clearHoveredItem());
-    },
-    clearSelectedItems: () => {
-        dispatch(clearSelectedItems());
     },
     setSelectedItems: () => {
         dispatch(setSelectedItems(getSelectedLeafItems(), false /* bitmapMode */));
