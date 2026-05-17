@@ -1,0 +1,202 @@
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <title>G2 超椭圆圆角矩形画板 (完美修复版)</title>
+    <style>
+        body, html {
+            margin: 0;
+            padding: 0;
+            overflow: hidden;
+            background-color: #f0f2f5;
+            font-family: sans-serif;
+            user-select: none;
+        }
+        #canvas-container {
+            position: relative;
+            width: 100vw;
+            height: 100vh;
+        }
+        canvas {
+            width: 100%;
+            height: 100%;
+            display: block;
+            background: #ffffff;
+            cursor: crosshair;
+        }
+        #toolbar {
+            position: absolute;
+            top: 20px;
+            left: 20px;
+            background: rgba(255, 255, 255, 0.95);
+            padding: 15px;
+            border-radius: 8px;
+            box-shadow: 0 4px 12px rgba(0,0,0,0.15);
+            display: flex;
+            flex-direction: column;
+            gap: 12px;
+            z-index: 10;
+        }
+        .tool-item {
+            display: flex;
+            align-items: center;
+            justify-content: space-between;
+            gap: 10px;
+        }
+        .tool-item label { font-size: 14px; color: #333; font-weight: bold; min-width: 110px; }
+        .tool-item input { width: 120px; }
+    </style>
+    <!-- 引入 Paper.js -->
+    <script src="https://cdnjs.cloudflare.com/ajax/libs/paper.js/0.12.17/paper-full.min.js"></script>
+</head>
+<body>
+
+    <div id="canvas-container">
+        <div id="toolbar">
+            <div class="tool-item">
+                <label for="exponent">G2 连续度 (k): <span id="k-val">4.0</span></label>
+                <input type="range" id="exponent" min="2.0" max="6.0" step="0.1" value="4.0">
+            </div>
+            <div class="tool-item">
+                <label for="radius">圆角大小 (r): <span id="r-val">40</span></label>
+                <input type="range" id="radius" min="0" max="150" step="1" value="40">
+            </div>
+            <div class="tool-item">
+                <label for="color">填充颜色:</label>
+                <input type="color" id="color" value="#4c97ff">
+            </div>
+            <hr style="border:0; border-top:1px solid #eee; margin:5px 0;">
+            <div style="font-size: 12px; color: #666; text-align: center;">在空白处按住鼠标左键并拖拽</div>
+        </div>
+        
+        <canvas id="paintCanvas"></canvas>
+    </div>
+
+<script>
+// ==================== 1. G2 超椭圆局部采样核心 ====================
+// 在局部坐标系下（圆角中心为原点），计算超椭圆单角的精确点
+function getG2CornerPoint(angle, r, k) {
+    if (r <= 0) return new paper.Point(0, 0);
+    
+    // 特判标准圆弧 (k = 2) 提升性能
+    if (Math.abs(k - 2.0) < 0.001) {
+        return new paper.Point(Math.cos(angle) * r, Math.sin(angle) * r);
+    }
+    
+    // 超椭圆方程: |x/r|^k + |y/r|^k = 1
+    // 基于角度的参数化方程优化，避免 Raymarching 误差
+    let cosA = Math.cos(angle);
+    let sinA = Math.sin(angle);
+    
+    let denom = Math.pow(Math.abs(cosA), k) + Math.pow(Math.abs(sinA), k);
+    let factor = r / Math.pow(denom, 1.0 / k);
+    
+    return new paper.Point(cosA * factor, sinA * factor);
+}
+
+// ==================== 2. Paper.js 初始化与绘制 ====================
+window.onload = function() {
+    const canvas = document.getElementById('paintCanvas');
+    paper.setup(canvas);
+
+    const kSlider = document.getElementById('exponent');
+    const rSlider = document.getElementById('radius');
+    const colorPicker = document.getElementById('color');
+    const kValText = document.getElementById('k-val');
+    const rValText = document.getElementById('r-val');
+
+    kSlider.oninput = () => kValText.innerText = kSlider.value;
+    rSlider.oninput = () => rValText.innerText = rSlider.value;
+
+    let startPoint = null;
+    let currentPath = null;
+
+    // 绘制 G2 超椭圆圆角矩形
+    function generateG2Box(from, to) {
+        // 确定包围盒边界
+        const minX = Math.min(from.x, to.x);
+        const maxX = Math.max(from.x, to.x);
+        const minY = Math.min(from.y, to.y);
+        const maxY = Math.max(from.y, to.y);
+        
+        const width = maxX - minX;
+        const height = maxY - minY;
+        
+        // 过滤极小矩形
+        if (width < 2 || height < 2) return null;
+
+        let r = parseFloat(rSlider.value);
+        const k = parseFloat(kSlider.value);
+        
+        // 动态约束半径不能超过短边的一半
+        r = Math.min(r, Math.min(width / 2, height / 2));
+
+        const path = new paper.Path({
+            closed: true,
+            fillColor: colorPicker.value,
+            strokeColor: '#2b2b2b',
+            strokeWidth: 2
+        });
+
+        // 4个圆角中心的局部坐标映射
+        // 按 顺时针 顺序生成：右上 -> 右下 -> 左下 -> 左上
+        const corners = [
+            { cx: maxX - r, cy: minY + r, startAngle: -Math.PI / 2, endAngle: 0 },         // 右上
+            { cx: maxX - r, cy: maxY - r, startAngle: 0,           endAngle: Math.PI / 2 },  // 右下
+            { cx: minX + r, cy: maxY - r, startAngle: Math.PI / 2,   endAngle: Math.PI },      // 左下
+            { cx: minX + r, cy: minY + r, startAngle: Math.PI,       endAngle: Math.PI * 1.5 } // 左上
+        ];
+
+        const pointsPerCorner = 12; // 每个角采样12个点，4个角总计48个点，完全足够平滑
+
+        corners.forEach(corner => {
+            for (let i = 0; i <= pointsPerCorner; i++) {
+                // 计算当前采样点的精确弧度
+                let angle = corner.startAngle + (corner.endAngle - corner.startAngle) * (i / pointsPerCorner);
+                // 获取以圆角中心为原点的超椭圆相对偏移
+                let offset = getG2CornerPoint(angle, r, k);
+                // 还原到画布绝对坐标并添加点
+                path.add(new paper.Point(corner.cx + offset.x, corner.cy + offset.y));
+            }
+        });
+        
+        // 由于采用了分段参数方程采样，曲线连接处本身就是完美的 G2/G1 连续
+        // factor 调小或者不加以保留纯正的数学边界，这里设为 0.1 保证极微小处的平滑
+        path.smooth({ type: 'catmull-rom', factor: 0.1 }); 
+        return path;
+    }
+
+    // ==================== 3. 交互事件 ====================
+    const myTool = new paper.Tool();
+
+    myTool.onMouseDown = function(event) {
+        startPoint = event.point;
+    };
+
+    myTool.onMouseDrag = function(event) {
+        if (!startPoint) return;
+        
+        if (currentPath) {
+            currentPath.remove();
+            currentPath = null;
+        }
+        
+        currentPath = generateG2Box(startPoint, event.point);
+        paper.view.draw();
+    };
+
+    myTool.onMouseUp = function(event) {
+        if (startPoint && event.point) {
+            if (currentPath) {
+                currentPath.remove();
+            }
+            generateG2Box(startPoint, event.point);
+            paper.view.draw();
+        }
+        startPoint = null;
+        currentPath = null;
+    };
+};
+</script>
+</body>
+</html>
