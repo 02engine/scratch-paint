@@ -36,6 +36,11 @@ const messages = defineMessages({
         description: 'Label for the rounded rectangle tool',
         id: 'paint.roundedRectMode.roundedRect'
     },
+    g2Curvature: {
+        defaultMessage: 'G2 Curvature',
+        description: 'Label for the G2 curvature tool, which draws rectangles with continuous curvature',
+        id: 'paint.g2CurvatureMode.g2Curvature'
+    },
     reshape: {
         defaultMessage: 'Reshape',
         description: 'Label for the reshape tool, which allows changing the points in the lines of the vectors',

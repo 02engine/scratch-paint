@@ -29,6 +29,7 @@ import ModeToolsContainer from '../../containers/mode-tools.jsx';
 import OvalMode from '../../containers/oval-mode.jsx';
 import RectMode from '../../containers/rect-mode.jsx';
 import RoundedRectMode from '../../containers/rounded-rect-mode.jsx';
+import G2CurvatureMode from '../../containers/g2-curvature-mode.jsx';
 import ReshapeMode from '../../containers/reshape-mode.jsx';
 import SelectMode from '../../containers/select-mode.jsx';
 import StrokeColorIndicatorComponent from '../../containers/stroke-color-indicator.jsx';
@@ -168,6 +169,9 @@ const PaintEditorComponent = props => (
                         onUpdateImage={props.onUpdateImage}
                     />
                     <RoundedRectMode
+                        onUpdateImage={props.onUpdateImage}
+                    />
+                    <G2CurvatureMode
                         onUpdateImage={props.onUpdateImage}
                     />
                 </div>

@@ -9,6 +9,7 @@ import {changeBitBrushSize} from '../../reducers/bit-brush-size';
 import {changeBitEraserSize} from '../../reducers/bit-eraser-size';
 import {setShapesFilled} from '../../reducers/fill-bitmap-shapes';
 import {changeCornerRadius} from '../../reducers/rounded-rect-mode';
+import {changeG2CornerRadius, changeG2Smoothing} from '../../reducers/g2-curvature-mode';
 
 import FontDropdown from '../../containers/font-dropdown.jsx';
 import LiveInputHOC from '../forms/live-input-hoc.jsx';
@@ -109,6 +110,11 @@ const ModeToolsComponent = props => {
             defaultMessage: 'Corner Radius',
             description: 'Label for the corner radius input',
             id: 'paint.modeTools.cornerRadius'
+        },
+        g2Smoothing: {
+            defaultMessage: 'G2 Smoothing',
+            description: 'Label for the G2 smoothing factor input',
+            id: 'paint.modeTools.g2Smoothing'
         }
     });
 
@@ -325,6 +331,40 @@ const ModeToolsComponent = props => {
             </div>
         );
     }
+    case Modes.G2_CURVATURE:
+    {
+        return (
+            <div className={classNames(props.className, styles.modeTools)}>
+                <InputGroup>
+                    <Label text={props.intl.formatMessage(messages.cornerRadius)}>
+                        <LiveInput
+                            range
+                            small
+                            max="100"
+                            min="0"
+                            type="number"
+                            value={props.g2CornerRadius}
+                            onSubmit={props.onG2CornerRadiusChange}
+                        />
+                    </Label>
+                </InputGroup>
+                <InputGroup>
+                    <Label text={props.intl.formatMessage(messages.g2Smoothing)}>
+                        <LiveInput
+                            range
+                            small
+                            max="1"
+                            min="0"
+                            step="0.01"
+                            type="number"
+                            value={props.g2Smoothing}
+                            onSubmit={props.onG2SmoothingChange}
+                        />
+                    </Label>
+                </InputGroup>
+            </div>
+        );
+    }
     default:
         // Leave empty for now, if mode not supported
         return (
@@ -347,6 +387,8 @@ ModeToolsComponent.propTypes = {
     intl: intlShape.isRequired,
     mode: PropTypes.string.isRequired,
     cornerRadius: PropTypes.number,
+    g2CornerRadius: PropTypes.number,
+    g2Smoothing: PropTypes.number,
     onBitBrushSliderChange: PropTypes.func.isRequired,
     onBitEraserSliderChange: PropTypes.func.isRequired,
     onBrushSliderChange: PropTypes.func.isRequired,
@@ -361,7 +403,9 @@ ModeToolsComponent.propTypes = {
     onOutlineShapes: PropTypes.func.isRequired,
     onPasteFromClipboard: PropTypes.func.isRequired,
     onPointPoints: PropTypes.func.isRequired,
-    onUpdateImage: PropTypes.func.isRequired
+    onUpdateImage: PropTypes.func.isRequired,
+    onG2CornerRadiusChange: PropTypes.func,
+    onG2SmoothingChange: PropTypes.func
 };
 
 const mapStateToProps = state => ({
@@ -373,7 +417,9 @@ const mapStateToProps = state => ({
     brushValue: state.scratchPaint.brushMode.brushSize,
     clipboardItems: state.scratchPaint.clipboard.items,
     eraserValue: state.scratchPaint.eraserMode.brushSize,
-    cornerRadius: state.scratchPaint.roundedRectMode.cornerRadius
+    cornerRadius: state.scratchPaint.roundedRectMode.cornerRadius,
+    g2CornerRadius: state.scratchPaint.g2CurvatureMode.cornerRadius,
+    g2Smoothing: state.scratchPaint.g2CurvatureMode.smoothing
 });
 const mapDispatchToProps = dispatch => ({
     onBrushSliderChange: brushSize => {
@@ -396,6 +442,12 @@ const mapDispatchToProps = dispatch => ({
     },
     onCornerRadiusChange: cornerRadius => {
         dispatch(changeCornerRadius(cornerRadius));
+    },
+    onG2CornerRadiusChange: cornerRadius => {
+        dispatch(changeG2CornerRadius(cornerRadius));
+    },
+    onG2SmoothingChange: smoothing => {
+        dispatch(changeG2Smoothing(smoothing));
     }
 });
 

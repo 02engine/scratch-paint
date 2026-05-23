@@ -10,6 +10,7 @@ const vectorModesObj = {
     OVAL: null,
     RECT: null,
     ROUNDED_RECT: null,
+    G2_CURVATURE: null,
     TEXT: null
 };
 const bitmapModesObj = {
@@ -33,6 +34,7 @@ const GradientToolsModes = keyMirror({
     OVAL: null,
     RECT: null,
     ROUNDED_RECT: null,
+    G2_CURVATURE: null,
     LINE: null,
 
     BIT_OVAL: null,

@@ -5,6 +5,7 @@ import bitEraserSizeReducer from './bit-eraser-size';
 import brushModeReducer from './brush-mode';
 import eraserModeReducer from './eraser-mode';
 import roundedRectModeReducer from './rounded-rect-mode';
+import g2CurvatureModeReducer from './g2-curvature-mode';
 import colorReducer from './color';
 import clipboardReducer from './clipboard';
 import cursorReducer from './cursor';
@@ -29,6 +30,7 @@ export default combineReducers({
     bitEraserSize: bitEraserSizeReducer,
     brushMode: brushModeReducer,
     roundedRectMode: roundedRectModeReducer,
+    g2CurvatureMode: g2CurvatureModeReducer,
     color: colorReducer,
     clipboard: clipboardReducer,
     cursor: cursorReducer,
