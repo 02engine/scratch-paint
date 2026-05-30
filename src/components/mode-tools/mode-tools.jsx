@@ -10,6 +10,7 @@ import {changeBitEraserSize} from '../../reducers/bit-eraser-size';
 import {setShapesFilled} from '../../reducers/fill-bitmap-shapes';
 import {changeCornerRadius} from '../../reducers/rounded-rect-mode';
 import {changeG2CornerRadius, changeG2Smoothing} from '../../reducers/g2-curvature-mode';
+import {changeIosCornerSize} from '../../reducers/ios-curvature-mode';
 
 import FontDropdown from '../../containers/font-dropdown.jsx';
 import LiveInputHOC from '../forms/live-input-hoc.jsx';
@@ -365,6 +366,27 @@ const ModeToolsComponent = props => {
             </div>
         );
     }
+    case Modes.IOS_CURVATURE:
+    {
+        return (
+            <div className={classNames(props.className, styles.modeTools)}>
+                <InputGroup>
+                    <Label text={props.intl.formatMessage(messages.cornerRadius)}>
+                        <LiveInput
+                            range
+                            small
+                            max="0.5"
+                            min="0.1"
+                            step="0.01"
+                            type="number"
+                            value={props.iosCurvatureSize}
+                            onSubmit={props.onIosCornerSizeChange}
+                        />
+                    </Label>
+                </InputGroup>
+            </div>
+        );
+    }
     default:
         // Leave empty for now, if mode not supported
         return (
@@ -419,7 +441,8 @@ const mapStateToProps = state => ({
     eraserValue: state.scratchPaint.eraserMode.brushSize,
     cornerRadius: state.scratchPaint.roundedRectMode.cornerRadius,
     g2CornerRadius: state.scratchPaint.g2CurvatureMode.cornerRadius,
-    g2Smoothing: state.scratchPaint.g2CurvatureMode.smoothing
+    g2Smoothing: state.scratchPaint.g2CurvatureMode.smoothing,
+    iosCurvatureSize: state.scratchPaint.iosCurvatureMode.cornerSize
 });
 const mapDispatchToProps = dispatch => ({
     onBrushSliderChange: brushSize => {
@@ -448,6 +471,9 @@ const mapDispatchToProps = dispatch => ({
     },
     onG2SmoothingChange: smoothing => {
         dispatch(changeG2Smoothing(smoothing));
+    },
+    onIosCornerSizeChange: cornerSize => {
+        dispatch(changeIosCornerSize(cornerSize));
     }
 });
 
