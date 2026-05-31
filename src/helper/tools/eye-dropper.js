@@ -76,27 +76,30 @@ class EyeDropperTool extends paper.Tool {
         this.handleMouseMove(event);
     }
     handleMouseUp () {
-        if (!this.hideLoupe) {
-            const colorInfo = this.getColorInfo(this.pickX, this.pickY, this.hideLoupe);
-            if (!colorInfo) return;
-            if (colorInfo.color[3] === 0) {
-                // Alpha 0
-                this.colorString = null;
-                return;
-            }
-            const r = colorInfo.color[0];
-            const g = colorInfo.color[1];
-            const b = colorInfo.color[2];
-            const a = colorInfo.color[3];
-
-            // from https://github.com/LLK/scratch-gui/blob/77e54a80a31b6cd4684d4b2a70f1aeec671f229e/src/containers/stage.jsx#L218-L222
-            // formats the color info from the canvas into hex for parsing by the color picker
-            const component = c => {
-                const hex = c.toString(16);
-                return hex.length === 1 ? `0${hex}` : hex;
-            };
-            this.colorString = `#${component(r)}${component(g)}${component(b)}${component(a)}`;
+        // Always get color info regardless of hideLoupe, because in draggable window mode
+        // the paper.js canvas coordinates can be negative even when the click is inside the canvas.
+        // The color canvas data lookup in getColorInfo still works correctly with negative coords.
+        const colorInfo = this.getColorInfo(this.pickX, this.pickY, this.hideLoupe);
+        if (!colorInfo) {
+            return;
         }
+        if (colorInfo.color[3] === 0) {
+            // Alpha 0
+            this.colorString = null;
+            return;
+        }
+        const r = colorInfo.color[0];
+        const g = colorInfo.color[1];
+        const b = colorInfo.color[2];
+        const a = colorInfo.color[3];
+
+        // from https://github.com/LLK/scratch-gui/blob/77e54a80a31b6cd4684d4b2a70f1aeec671f229e/src/containers/stage.jsx#L218-L222
+        // formats the color info from the canvas into hex for parsing by the color picker
+        const component = c => {
+            const hex = c.toString(16);
+            return hex.length === 1 ? `0${hex}` : hex;
+        };
+        this.colorString = `#${component(r)}${component(g)}${component(b)}${component(a)}`;
     }
     getColorInfo (x, y, hideLoupe) {
         if (this.previousColorInfo && this.previousColorInfo.x === x && this.previousColorInfo.y === y) {

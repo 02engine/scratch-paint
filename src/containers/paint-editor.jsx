@@ -132,9 +132,10 @@ class PaintEditor extends React.Component {
         } else if (!this.props.isEyeDropping && prevProps.isEyeDropping) {
             this.stopEyeDroppingLoop();
         } else if (this.props.isEyeDropping && this.props.viewBounds !== prevProps.viewBounds) {
-            if (this.props.previousTool) this.props.previousTool.activate();
-            this.props.onDeactivateEyeDropper();
-            this.stopEyeDroppingLoop();
+            // 在 newUI/draggable-window 模式下，点击 canvas 会导致 viewBounds 变化，
+            // 这个变化在 mouseup 之前发生。如果在这里停止取色器（eyeDropper.remove()），
+            // 会导致 paper.js 的工具被注销，后续 mouseup 的 handleMouseUp 永远不会触发。
+            // 因此这里不停止取色器，让 mouseup 的 onMouseUp 处理后续逻辑。
         }
 
         if (this.props.format === Formats.VECTOR && isBitmap(prevProps.format)) {
@@ -270,20 +271,38 @@ class PaintEditor extends React.Component {
             this.props.removeTextEditTarget();
         }
     }
-    onMouseUp () {
-        if (this.props.isEyeDropping) {
+    onMouseUp (event) {
+        // Check both this.props.isEyeDropping AND existence of eyeDropper with colorString.
+        // In draggable window mode, isEyeDropping may be set to false by viewBounds change
+        // BEFORE mouseup fires, but the eyeDropper still has the color data.
+        if (this.eyeDropper && (this.props.isEyeDropping || this.eyeDropper.colorString)) {
+            if (!this.props.isEyeDropping) {
+            }
+            if (!this.eyeDropper) {
+                return;
+            }
+            // Capture all state before remove()
             const colorString = this.eyeDropper.colorString;
             const callback = this.props.changeColorToEyeDropper;
+            const hideLoupe = this.eyeDropper.hideLoupe;
+            const canvasElement = this.canvas;
 
             this.eyeDropper.remove();
-            if (!this.eyeDropper.hideLoupe) {
-                // If not hide loupe, that means the click is inside the canvas,
-                // so apply the new color
+
+            const isInsideCanvas = event && event.target && canvasElement && (
+                event.target === canvasElement || canvasElement.contains(event.target)
+            );
+
+            if (isInsideCanvas || !hideLoupe) {
                 callback(colorString);
+            } else {
+
             }
             if (this.props.previousTool) this.props.previousTool.activate();
             this.props.onDeactivateEyeDropper();
             this.stopEyeDroppingLoop();
+        } else {
+
         }
     }
     startEyeDroppingLoop () {
@@ -300,6 +319,22 @@ class PaintEditor extends React.Component {
         this.eyeDropper.pickX = -1;
         this.eyeDropper.pickY = -1;
         this.eyeDropper.activate();
+        
+        // Monkey-patch the paper.js event handlers to add logging
+        const originalHandleMouseDown = this.eyeDropper.handleMouseDown;
+        this.eyeDropper.handleMouseDown = function(event) {
+            return originalHandleMouseDown.call(this, event);
+        };
+        const originalHandleMouseMove = this.eyeDropper.handleMouseMove;
+        this.eyeDropper.handleMouseMove = function(event) {
+            const result = originalHandleMouseMove.call(this, event);
+            return result;
+        };
+        const originalHandleMouseUp = this.eyeDropper.handleMouseUp;
+        this.eyeDropper.handleMouseUp = function() {
+            const result = originalHandleMouseUp.call(this);
+            return result;
+        };
 
         const callback = () => {
             this.animationFrameId = requestAnimationFrame(callback);
