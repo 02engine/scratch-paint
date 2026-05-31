@@ -41,11 +41,6 @@ const messages = defineMessages({
         description: 'Label for the G2 curvature tool, which draws rectangles with continuous curvature',
         id: 'paint.g2CurvatureMode.g2Curvature'
     },
-    iosCurvature: {
-        defaultMessage: 'iOS Curvature',
-        description: 'Label for the iOS curvature tool, which draws squircle rectangles with Apple\'s continuous curvature',
-        id: 'paint.iosCurvatureMode.iosCurvature'
-    },
     reshape: {
         defaultMessage: 'Reshape',
         description: 'Label for the reshape tool, which allows changing the points in the lines of the vectors',

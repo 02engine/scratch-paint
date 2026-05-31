@@ -10,7 +10,6 @@ const vectorModesObj = {
     OVAL: null,
     RECT: null,
     ROUNDED_RECT: null,
-    IOS_CURVATURE: null,
     G2_CURVATURE: null,
     TEXT: null
 };
