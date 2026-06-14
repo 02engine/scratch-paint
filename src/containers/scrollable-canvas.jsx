@@ -6,6 +6,7 @@ import {connect} from 'react-redux';
 import ScrollableCanvasComponent from '../components/scrollable-canvas/scrollable-canvas.jsx';
 
 import {clampViewBounds, pan, zoomOnFixedPoint, getWorkspaceBounds, updateWorkspaceCenter} from '../helper/view';
+import {getAllRootItems} from '../helper/selection';
 import {updateViewBounds} from '../reducers/view-bounds';
 import {redrawSelectionBox} from '../reducers/selected-items';
 
@@ -188,14 +189,48 @@ class ScrollableCanvas extends React.Component {
         let topPercent = 0;
         let leftPercent = 0;
         if (paper.project) {
-            const bounds = getWorkspaceBounds();
-            const {x, y, width, height} = paper.view.bounds;
-            widthPercent = Math.min(100, 100 * width / bounds.width);
-            heightPercent = Math.min(100, 100 * height / bounds.height);
-            const centerX = (x + (width / 2) - bounds.x) / bounds.width;
-            const centerY = (y + (height / 2) - bounds.y) / bounds.height;
-            topPercent = Math.max(0, (100 * centerY) - (heightPercent / 2));
-            leftPercent = Math.max(0, (100 * centerX) - (widthPercent / 2));
+            const viewBounds = paper.view.bounds;
+            const {x, y, width, height} = viewBounds;
+            
+            // 计算所有非 guide、非 helper 的绘制内容的合并边界
+            const allItems = getAllRootItems();
+            let contentBounds = null;
+            for (const item of allItems) {
+                if (item.guide || (item.data && item.data.isHelperItem)) continue;
+                if (contentBounds) {
+                    contentBounds = contentBounds.unite(item.bounds);
+                } else {
+                    contentBounds = item.bounds;
+                }
+            }
+            
+            // 如果有绘制内容，基于内容边界计算滚动条
+            if (contentBounds && contentBounds.width && contentBounds.height) {
+                // 总边界 = 内容边界与视图边界的并集
+                const totalBounds = contentBounds.unite(viewBounds);
+                
+                // 如果视图能完整包含所有内容，则滚动条为 100%（隐藏）
+                if (viewBounds.contains(contentBounds)) {
+                    widthPercent = 100;
+                    heightPercent = 100;
+                } else {
+                    widthPercent = Math.min(100, 100 * width / totalBounds.width);
+                    heightPercent = Math.min(100, 100 * height / totalBounds.height);
+                    const centerX = (x + (width / 2) - totalBounds.x) / totalBounds.width;
+                    const centerY = (y + (height / 2) - totalBounds.y) / totalBounds.height;
+                    topPercent = Math.max(0, (100 * centerY) - (heightPercent / 2));
+                    leftPercent = Math.max(0, (100 * centerX) - (widthPercent / 2));
+                }
+            } else {
+                // 没有内容时，使用工作区边界计算
+                const bounds = getWorkspaceBounds();
+                widthPercent = Math.min(100, 100 * width / bounds.width);
+                heightPercent = Math.min(100, 100 * height / bounds.height);
+                const centerX = (x + (width / 2) - bounds.x) / bounds.width;
+                const centerY = (y + (height / 2) - bounds.y) / bounds.height;
+                topPercent = Math.max(0, (100 * centerY) - (heightPercent / 2));
+                leftPercent = Math.max(0, (100 * centerX) - (widthPercent / 2));
+            }
         }
         return (
             <ScrollableCanvasComponent
