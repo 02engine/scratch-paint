@@ -18,8 +18,7 @@ const ScrollableCanvasComponent = props => (
                     width: `${props.horizontalScrollLengthPercent}%`,
                     left: `${props.horizontalScrollStartPercent}%`,
                     pointerEvents: 'auto',
-                    display: `${props.hideScrollbars ||
-                        Math.abs(props.horizontalScrollLengthPercent - 100) < 1e-8 ? 'none' : 'block'}`
+                    display: props.hideScrollbars ? 'none' : 'block'
                 }}
                 onMouseDown={props.onHorizontalScrollbarMouseDown}
                 onTouchStart={props.onHorizontalScrollbarMouseDown}
@@ -39,8 +38,7 @@ const ScrollableCanvasComponent = props => (
                     height: `${props.verticalScrollLengthPercent}%`,
                     top: `${props.verticalScrollStartPercent}%`,
                     pointerEvents: 'auto',
-                    display: `${props.hideScrollbars ||
-                        Math.abs(props.verticalScrollLengthPercent - 100) < 1e-8 ? 'none' : 'block'}`
+                    display: props.hideScrollbars ? 'none' : 'block'
                 }}
                 onMouseDown={props.onVerticalScrollbarMouseDown}
                 onTouchStart={props.onVerticalScrollbarMouseDown}
